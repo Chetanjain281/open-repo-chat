@@ -44,6 +44,10 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
     private async checkStatus() {
         if (!this._view) { return; }
 
+        const config = vscode.workspace.getConfiguration('openRepoChat');
+        const chatModel = config.get<string>('chatModel') || 'llama3.2:3b';
+        const embedModel = config.get<string>('embeddingModel') || 'nomic-embed-text';
+
         const isOllamaRunning = await this._ollamaService.isRunning();
         let models: string[] = [];
         
@@ -52,14 +56,16 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
             models = modelList.map(m => m.name);
         }
 
-        const hasEmbedModel = models.some(m => m.includes('nomic-embed-text'));
-        const hasChatModel = models.some(m => m.includes('llama3.2:3b')); // Simplistic check
+        const hasEmbedModel = models.some(m => m.includes(embedModel));
+        const hasChatModel = models.some(m => m.includes(chatModel));
 
         this._view.webview.postMessage({
             type: 'status',
             ollama: isOllamaRunning,
             embedModel: hasEmbedModel,
-            chatModel: hasChatModel
+            chatModel: hasChatModel,
+            embedModelName: embedModel,
+            chatModelName: chatModel
         });
     }
 
@@ -75,7 +81,6 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                 });
             });
             
-            // Re-check status after pull
             await this.checkStatus();
              this._view?.webview.postMessage({
                     type: 'pullComplete',
@@ -91,13 +96,8 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // We will load the HTML from a file for better separation
-        // But for now, since I can't easily readSync in this tool without extra steps, 
-        // I'll inline the logic to load from disk or just return a string.
-        // The plan said explicit file. Let's try to assume we can use the file.
-        
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'setup.js'));
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'setup.css')); // if we have css
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'setup.css'));
         const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
 
         const nonce = getNonce();
@@ -112,18 +112,19 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                 <link href="${codiconsUri}" rel="stylesheet">
                 <title>Setup Open Repo Chat</title>
                 <style>
-                    body { font-family: var(--vscode-font-family); padding: 20px; color: var(--vscode-foreground); }
-                    .step { margin-bottom: 20px; padding: 15px; border: 1px solid var(--vscode-widget-border); border-radius: 5px; background: var(--vscode-editor-background); }
+                    body { font-family: var(--vscode-font-family); padding: 20px; color: var(--vscode-foreground); background: var(--vscode-sideBar-background); }
+                    .step { margin-bottom: 20px; padding: 15px; border: 1px solid var(--vscode-widget-border); border-radius: 8px; background: var(--vscode-editor-background); }
                     .step-header { display: flex; align-items: center; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
                     .status-icon { margin-right: 10px; }
                     .codicon-check { color: var(--vscode-testing-iconPassed); }
                     .codicon-error { color: var(--vscode-testing-iconFailed); }
                     .codicon-circle-large-outline { color: var(--vscode-descriptionForeground); }
-                    button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 8px 12px; cursor: pointer; }
+                    button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
                     button:hover { background: var(--vscode-button-hoverBackground); }
                     button:disabled { opacity: 0.5; cursor: default; }
-                    .progress-bar { height: 4px; background: var(--vscode-progressBar-background); margin-top: 10px; width: 0%; transition: width 0.3s; }
+                    .progress-bar { height: 4px; background: var(--vscode-progressBar-background); margin-top: 10px; width: 0%; transition: width 0.3s; border-radius: 2px; }
                     .hidden { display: none; }
+                    .model-name { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
                 </style>
             </head>
             <body>
@@ -136,8 +137,8 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div class="step-content">
                         <p>Ollama must be running locally.</p>
-                        <a href="https://ollama.com" target="_blank">Download Ollama</a>
-                        <button id="btn-check-ollama">Check Again</button>
+                        <a href="https://ollama.com" target="_blank" style="color: var(--vscode-textLink-foreground);">Download Ollama</a>
+                        <button id="btn-check-ollama" style="margin-left: 10px;">Check Again</button>
                     </div>
                 </div>
 
@@ -147,7 +148,7 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                         <span class="status-text">Waiting...</span>
                     </div>
                     <div class="step-content">
-                        <p>Model: <code>nomic-embed-text</code></p>
+                        <p>Model: <code class="model-name" id="model-embed-name">nomic-embed-text</code></p>
                         <button id="btn-pull-embed" disabled>Download Model</button>
                         <div class="progress-container hidden">
                             <div class="progress-bar" id="progress-embed"></div>
@@ -162,7 +163,7 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                         <span class="status-text">Waiting...</span>
                     </div>
                     <div class="step-content">
-                        <p>Model: <code>llama3.2:3b</code></p>
+                        <p>Model: <code class="model-name" id="model-chat-name">llama3.2:3b</code></p>
                         <button id="btn-pull-chat" disabled>Download Model</button>
                          <div class="progress-container hidden">
                             <div class="progress-bar" id="progress-chat"></div>
@@ -171,7 +172,7 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                     </div>
                 </div>
                 
-                <div id="setup-complete" class="hidden">
+                <div id="setup-complete" class="hidden" style="text-align: center; padding: 20px;">
                     <h3>✅ Setup Complete!</h3>
                     <p>You can now start indexing your codebase.</p>
                 </div>

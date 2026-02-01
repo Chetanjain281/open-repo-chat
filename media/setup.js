@@ -15,6 +15,12 @@
     const progressTextEmbed = document.getElementById('progress-text-embed');
     const progressTextChat = document.getElementById('progress-text-chat');
 
+    const modelEmbedNameText = document.getElementById('model-embed-name');
+    const modelChatNameText = document.getElementById('model-chat-name');
+
+    let currentEmbedModel = 'nomic-embed-text';
+    let currentChatModel = 'llama3.2:3b';
+
     // UI Updaters
     function updateStep(element, status) { // status: 'pending' | 'success' | 'error'
         const icon = element.querySelector('.status-icon');
@@ -42,13 +48,13 @@
     btnPullEmbed.addEventListener('click', () => {
         btnPullEmbed.disabled = true;
         document.querySelector('#step-embed .progress-container').classList.remove('hidden');
-        vscode.postMessage({ command: 'pullModel', model: 'nomic-embed-text' });
+        vscode.postMessage({ command: 'pullModel', model: currentEmbedModel });
     });
 
     btnPullChat.addEventListener('click', () => {
         btnPullChat.disabled = true;
         document.querySelector('#step-chat .progress-container').classList.remove('hidden');
-        vscode.postMessage({ command: 'pullModel', model: 'llama3.2:3b' });
+        vscode.postMessage({ command: 'pullModel', model: currentChatModel });
     });
 
     // Handle Messages
@@ -72,6 +78,12 @@
     });
 
     function handleStatus(status) {
+        currentEmbedModel = status.embedModelName;
+        currentChatModel = status.chatModelName;
+
+        modelEmbedNameText.textContent = currentEmbedModel;
+        modelChatNameText.textContent = currentChatModel;
+
         // 1. Ollama
         updateStep(stepOllama, status.ollama ? 'success' : 'error');
         
@@ -80,6 +92,7 @@
             updateStep(stepEmbed, status.embedModel ? 'success' : 'pending');
             btnPullEmbed.disabled = status.embedModel;
             if (status.embedModel) btnPullEmbed.textContent = 'Installed';
+            else btnPullEmbed.textContent = 'Download Model';
         } else {
              btnPullEmbed.disabled = true;
         }
@@ -89,18 +102,21 @@
             updateStep(stepChat, status.chatModel ? 'success' : 'pending');
              btnPullChat.disabled = status.chatModel;
              if (status.chatModel) btnPullChat.textContent = 'Installed';
+             else btnPullChat.textContent = 'Download Model';
         } else {
             btnPullChat.disabled = true;
         }
 
         if (status.ollama && status.embedModel && status.chatModel) {
             document.getElementById('setup-complete').classList.remove('hidden');
+        } else {
+            document.getElementById('setup-complete').classList.add('hidden');
         }
     }
 
     function handleProgress(msg) {
         let bar, text;
-        if (msg.model === 'nomic-embed-text') {
+        if (msg.model === currentEmbedModel) {
             bar = progressEmbed;
             text = progressTextEmbed;
         } else {

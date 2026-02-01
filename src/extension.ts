@@ -11,8 +11,11 @@ import { ChatViewProvider } from './providers/ChatViewProvider';
 export function activate(context: vscode.ExtensionContext) {
     console.log('Open Repo Chat is active!');
 
+    const config = vscode.workspace.getConfiguration('openRepoChat');
+    const ollamaUrl = config.get<string>('ollamaUrl') || 'http://localhost:11434';
+
     // Initialize Services
-    const ollamaService = new OllamaService();
+    const ollamaService = new OllamaService(ollamaUrl);
     
     const lancedbService = new LanceDBService(context);
     const fileDiscoveryService = new FileDiscoveryService();
@@ -42,6 +45,18 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('open-repo-chat.index', async () => {
              vscode.commands.executeCommand('workbench.view.extension.openRepoChat');
              vscode.window.showInformationMessage('Please use the Index button in the Chat sidebar.');
+        })
+    );
+
+    // Listen for config changes
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('openRepoChat.ollamaUrl')) {
+                const newUrl = vscode.workspace.getConfiguration('openRepoChat').get<string>('ollamaUrl');
+                if (newUrl) {
+                    ollamaService.setBaseUrl(newUrl);
+                }
+            }
         })
     );
 }

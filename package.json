@@ -15,6 +15,26 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Open Repo Chat",
+      "properties": {
+        "openRepoChat.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "The URL of the Ollama server."
+        },
+        "openRepoChat.chatModel": {
+          "type": "string",
+          "default": "llama3.2:3b",
+          "description": "The LLM model to use for chat."
+        },
+        "openRepoChat.embeddingModel": {
+          "type": "string",
+          "default": "nomic-embed-text",
+          "description": "The model to use for generating embeddings."
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {

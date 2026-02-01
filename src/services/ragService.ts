@@ -1,6 +1,7 @@
-import { OllamaService } from './ollama';
+import { OllamaService, ChatMessage } from './ollama';
 import { LanceDBService } from './lancedb';
 import { SYSTEM_PROMPT } from '../prompts/systemPrompt';
+import * as vscode from 'vscode';
 
 export class RAGService {
     constructor(
@@ -8,12 +9,17 @@ export class RAGService {
         private lancedb: LanceDBService
     ) {}
 
-    async *ask(question: string): AsyncGenerator<string, void, unknown> {
+    async *ask(question: string, signal?: AbortSignal): AsyncGenerator<string, void, unknown> {
+        const config = vscode.workspace.getConfiguration('openRepoChat');
+        const chatModel = config.get<string>('chatModel') || 'llama3.2:3b';
+        const embedModel = config.get<string>('embeddingModel') || 'nomic-embed-text';
+
         // 1. Embed Question
-        const vector = await this.ollama.embed(`search_query: ${question}`);
+        const vectors = await this.ollama.generateEmbeddings(`search_query: ${question}`, embedModel, signal);
+        const vector = vectors[0];
 
         // 2. Search
-        const results = await this.lancedb.search(vector, 5); // Start with top 5
+        const results = await this.lancedb.search(vector, 7);
         
         // 3. Build Context
         const contextText = results.map(r => 
@@ -26,12 +32,12 @@ export class RAGService {
             .replace('{{QUESTION}}', question);
 
         // 5. Chat
-        const messages: { role: 'user' | 'system' | 'assistant'; content: string }[] = [
-            { role: 'user', content: prompt } // Using single-turn RAG for now, or append to history
+        const messages: ChatMessage[] = [
+            { role: 'user', content: prompt }
         ];
 
         // Yield tokens
-        for await (const chunk of this.ollama.chatGenerator(messages)) {
+        for await (const chunk of this.ollama.chatGenerator(messages, chatModel, signal)) {
             yield chunk;
         }
     }

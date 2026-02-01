@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}'; font-src {{cspSource}};">
+    <link href="{{styleUri}}" rel="stylesheet">
+    <link href="{{codiconsUri}}" rel="stylesheet">
+    <title>Open Repo Chat</title>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="header-status">
+                <span id="index-status">Ready</span>
+            </div>
+            <div class="header-actions">
+                <button id="btn-reindex" class="icon-btn" title="Re-index Codebase">
+                    <i class="codicon codicon-refresh"></i>
+                </button>
+            </div>
+        </header>
+
+        <div id="chat-container">
+            <!-- Messages go here -->
+            <div class="message assistant">
+                <div class="bubble">
+                    Hi! I'm Open Repo Chat. Index your codebase and ask me anything!
+                </div>
+            </div>
+        </div>
+
+        <div id="input-area">
+            <textarea id="prompt-input" placeholder="Ask about your code... (Cmd+Enter to send)"></textarea>
+            <button id="btn-send">
+                <i class="codicon codicon-send"></i>
+            </button>
+        </div>
+        
+        <div id="index-overlay" class="hidden">
+            <div class="overlay-content">
+                <h3>Indexing Codebase...</h3>
+                <div class="progress-bar">
+                    <div class="fill" id="index-progress-fill"></div>
+                </div>
+                <p id="index-progress-text">scanning...</p>
+            </div>
+        </div>
+    </div>
+    <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+</body>
+</html>

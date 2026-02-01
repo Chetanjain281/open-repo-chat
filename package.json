@@ -1,0 +1,84 @@
+{
+  "name": "open-repo-chat",
+  "displayName": "Open Repo Chat",
+  "description": "OFFLINE AI Chat for codebase and its documentation",
+  "version": "0.0.1",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:openRepoChat.chatView"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "open-repo-chat-sidebar",
+          "title": "Open Repo Chat",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "open-repo-chat-sidebar": [
+        {
+          "type": "webview",
+          "id": "openRepoChat.setupView",
+          "name": "Setup"
+        },
+        {
+          "type": "webview",
+          "id": "openRepoChat.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "open-repo-chat.index",
+        "title": "Open Repo Chat: Index Codebase"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.108.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.23.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^17.0.1",
+    "tree-sitter": "0.21.1",
+    "tree-sitter-javascript": "0.21.4",
+    "tree-sitter-python": "0.21.0",
+    "tree-sitter-typescript": "0.21.2",
+    "web-tree-sitter": "^0.26.3"
+  }
+}

@@ -1,0 +1,6 @@
+body {
+    padding: 10px;
+}
+.completed {
+    border-color: var(--vscode-testing-iconPassed) !important;
+}

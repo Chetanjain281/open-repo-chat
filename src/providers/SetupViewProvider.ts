@@ -34,6 +34,9 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                 case 'pullModel':
                     await this.pullModel(data.model);
                     break;
+                case 'updateModels':
+                    await this.updateModels(data.chatModel, data.embedModel);
+                    break;
             }
         });
 
@@ -67,6 +70,14 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
             embedModelName: embedModel,
             chatModelName: chatModel
         });
+    }
+
+    private async updateModels(chatModel: string, embedModel: string) {
+        const config = vscode.workspace.getConfiguration('openRepoChat');
+        await config.update('chatModel', chatModel, vscode.ConfigurationTarget.Global);
+        await config.update('embeddingModel', embedModel, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`Models updated to ${chatModel} and ${embedModel}`);
+        await this.checkStatus();
     }
 
     private async pullModel(modelName: string) {
@@ -124,11 +135,23 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                     button:disabled { opacity: 0.5; cursor: default; }
                     .progress-bar { height: 4px; background: var(--vscode-progressBar-background); margin-top: 10px; width: 0%; transition: width 0.3s; border-radius: 2px; }
                     .hidden { display: none; }
-                    .model-name { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
+                    .model-name { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; border: 1px solid var(--vscode-input-border); color: var(--vscode-input-foreground); }
+                    input[type="text"] { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); padding: 4px 8px; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
                 </style>
             </head>
             <body>
                 <h2>Setup Open Repo Chat</h2>
+
+                <div class="step">
+                    <div class="step-header">Model Configuration</div>
+                    <div class="step-content">
+                        <label>Chat Model:</label>
+                        <input type="text" id="input-chat-model" placeholder="e.g. llama3.2:3b">
+                        <label>Embedding Model:</label>
+                        <input type="text" id="input-embed-model" placeholder="e.g. nomic-embed-text">
+                        <button id="btn-save-models">Update Models</button>
+                    </div>
+                </div>
                 
                 <div class="step" id="step-ollama">
                     <div class="step-header">
@@ -148,7 +171,7 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                         <span class="status-text">Waiting...</span>
                     </div>
                     <div class="step-content">
-                        <p>Model: <code class="model-name" id="model-embed-name">nomic-embed-text</code></p>
+                        <p>Current: <code class="model-name" id="model-embed-name">nomic-embed-text</code></p>
                         <button id="btn-pull-embed" disabled>Download Model</button>
                         <div class="progress-container hidden">
                             <div class="progress-bar" id="progress-embed"></div>
@@ -163,7 +186,7 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
                         <span class="status-text">Waiting...</span>
                     </div>
                     <div class="step-content">
-                        <p>Model: <code class="model-name" id="model-chat-name">llama3.2:3b</code></p>
+                        <p>Current: <code class="model-name" id="model-chat-name">llama3.2:3b</code></p>
                         <button id="btn-pull-chat" disabled>Download Model</button>
                          <div class="progress-container hidden">
                             <div class="progress-bar" id="progress-chat"></div>

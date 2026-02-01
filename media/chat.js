@@ -51798,6 +51798,10 @@
     }
   });
 
+  // node_modules/highlight.js/es/index.js
+  var import_lib = __toESM(require_lib(), 1);
+  var es_default = import_lib.default;
+
   // node_modules/marked/lib/marked.esm.js
   function L() {
     return { async: false, breaks: false, extensions: null, gfm: true, hooks: null, pedantic: false, renderer: null, silent: false, tokenizer: null, walkTokens: null };
@@ -52975,10 +52979,6 @@ Please report this to https://github.com/markedjs/marked.`, e) {
   var Ft = b.parse;
   var jt = x.lex;
 
-  // node_modules/highlight.js/es/index.js
-  var import_lib = __toESM(require_lib(), 1);
-  var es_default = import_lib.default;
-
   // webview/chat.js
   (function() {
     const vscode = acquireVsCodeApi();
@@ -53013,6 +53013,7 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       }
       const pathInfo = filePath ? `<span class="file-path">${filePath}</span>` : "";
       const applyBtn = filePath ? `<button class="code-action-btn apply-btn" data-path="${filePath}">Apply</button>` : "";
+      const diffBtn = filePath ? `<button class="code-action-btn diff-btn" data-path="${filePath}">Diff</button>` : "";
       return `
         <div class="code-block">
             <div class="code-header">
@@ -53021,6 +53022,7 @@ Please report this to https://github.com/markedjs/marked.`, e) {
                     ${pathInfo}
                 </div>
                 <div class="header-right-actions">
+                    ${diffBtn}
                     ${applyBtn}
                     <button class="code-action-btn copy-btn">Copy</button>
                 </div>
@@ -53041,6 +53043,8 @@ Please report this to https://github.com/markedjs/marked.`, e) {
         copyCode(e.target);
       } else if (e.target.classList.contains("apply-btn")) {
         applyCode(e.target);
+      } else if (e.target.classList.contains("diff-btn")) {
+        diffCode(e.target);
       }
     });
     promptInput.addEventListener("input", function() {
@@ -53076,8 +53080,9 @@ Please report this to https://github.com/markedjs/marked.`, e) {
     }
     function clearChat() {
       chatContainer.innerHTML = "";
+      vscode.postMessage({ command: "clear-chat" });
       vscode.setState({});
-      appendMessage("assistant", "Chat cleared. How can I help you with your code today?");
+      appendMessage("assistant", "Chat cleared. Models unloaded from RAM. How can I help you with your code today?");
     }
     function setGenerating(generating) {
       isGenerating = generating;
@@ -53143,6 +53148,14 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       btn.textContent = "Applied!";
       setTimeout(() => btn.textContent = original, 2e3);
     }
+    function diffCode(btn) {
+      const filePath = btn.dataset.path;
+      const code = btn.closest(".code-block").querySelector("code").textContent;
+      vscode.postMessage({
+        command: "view-diff",
+        data: { filePath, content: code }
+      });
+    }
     function scrollToBottom() {
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -53159,8 +53172,6 @@ Please report this to https://github.com/markedjs/marked.`, e) {
           break;
         case "index-progress":
           if (message.data.message) progressText.textContent = message.data.message;
-          if (message.data.increment) {
-          }
           break;
         case "index-end":
           indexOverlay.classList.add("hidden");

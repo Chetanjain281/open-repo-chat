@@ -78,6 +78,25 @@ export class OllamaService {
         }
     }
 
+    /**
+     * Unloads a model from RAM by setting keep_alive to 0.
+     */
+    async unloadModel(modelName: string): Promise<void> {
+        try {
+            await fetch(`${this.baseUrl}/api/chat`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [],
+                    keep_alive: 0
+                })
+            });
+            console.log(`Unloaded model ${modelName} from RAM.`);
+        } catch (e) {
+            console.error(`Failed to unload model ${modelName}:`, e);
+        }
+    }
+
     async embed(prompt: string, model: string = 'nomic-embed-text'): Promise<number[]> {
         const embeddings = await this.generateEmbeddings(prompt, model);
         return embeddings[0];
@@ -118,8 +137,8 @@ export class OllamaService {
                     return [data.embedding];
                 }
             }
-        } catch (e) {
-            if ((e as Error).name === 'AbortError') {
+        } catch (e: any) {
+            if (e.name === 'AbortError') {
                 throw e;
             }
             console.error('Embedding failed:', e);

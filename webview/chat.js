@@ -1,5 +1,5 @@
-import { marked } from 'marked';
 import hljs from 'highlight.js';
+import { marked } from 'marked';
 
 (function() {
     const vscode = acquireVsCodeApi();
@@ -44,6 +44,7 @@ import hljs from 'highlight.js';
 
         const pathInfo = filePath ? `<span class="file-path">${filePath}</span>` : '';
         const applyBtn = filePath ? `<button class="code-action-btn apply-btn" data-path="${filePath}">Apply</button>` : '';
+        const diffBtn = filePath ? `<button class="code-action-btn diff-btn" data-path="${filePath}">Diff</button>` : '';
 
         return `
         <div class="code-block">
@@ -53,6 +54,7 @@ import hljs from 'highlight.js';
                     ${pathInfo}
                 </div>
                 <div class="header-right-actions">
+                    ${diffBtn}
                     ${applyBtn}
                     <button class="code-action-btn copy-btn">Copy</button>
                 </div>
@@ -77,6 +79,8 @@ import hljs from 'highlight.js';
             copyCode(e.target);
         } else if (e.target.classList.contains('apply-btn')) {
             applyCode(e.target);
+        } else if (e.target.classList.contains('diff-btn')) {
+            diffCode(e.target);
         }
     });
 
@@ -123,9 +127,10 @@ import hljs from 'highlight.js';
 
     function clearChat() {
         chatContainer.innerHTML = '';
+        vscode.postMessage({ command: 'clear-chat' });
         vscode.setState({});
         // Add back welcome message
-        appendMessage('assistant', 'Chat cleared. How can I help you with your code today?');
+        appendMessage('assistant', 'Chat cleared. Models unloaded from RAM. How can I help you with your code today?');
     }
 
     function setGenerating(generating) {
@@ -205,6 +210,15 @@ import hljs from 'highlight.js';
         setTimeout(() => btn.textContent = original, 2000);
     }
 
+    function diffCode(btn) {
+        const filePath = btn.dataset.path;
+        const code = btn.closest('.code-block').querySelector('code').textContent;
+        vscode.postMessage({
+            command: 'view-diff',
+            data: { filePath, content: code }
+        });
+    }
+
     function scrollToBottom() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -222,10 +236,6 @@ import hljs from 'highlight.js';
                 break;
             case 'index-progress':
                 if (message.data.message) progressText.textContent = message.data.message;
-                if (message.data.increment) {
-                   // Calculate percent if possible or just use what we have
-                }
-                // Update fill based on message if it contains progress
                 break;
             case 'index-end':
                 indexOverlay.classList.add('hidden');

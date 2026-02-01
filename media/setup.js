@@ -9,6 +9,7 @@
     const btnCheckOllama = document.getElementById('btn-check-ollama');
     const btnPullEmbed = document.getElementById('btn-pull-embed');
     const btnPullChat = document.getElementById('btn-pull-chat');
+    const btnSaveModels = document.getElementById('btn-save-models');
 
     const progressEmbed = document.getElementById('progress-embed');
     const progressChat = document.getElementById('progress-chat');
@@ -17,6 +18,9 @@
 
     const modelEmbedNameText = document.getElementById('model-embed-name');
     const modelChatNameText = document.getElementById('model-chat-name');
+
+    const inputChatModel = document.getElementById('input-chat-model');
+    const inputEmbedModel = document.getElementById('input-embed-model');
 
     let currentEmbedModel = 'nomic-embed-text';
     let currentChatModel = 'llama3.2:3b';
@@ -57,6 +61,14 @@
         vscode.postMessage({ command: 'pullModel', model: currentChatModel });
     });
 
+    btnSaveModels.addEventListener('click', () => {
+        vscode.postMessage({
+            command: 'updateModels',
+            chatModel: inputChatModel.value,
+            embedModel: inputEmbedModel.value
+        });
+    });
+
     // Handle Messages
     window.addEventListener('message', event => {
         const message = event.data;
@@ -83,6 +95,9 @@
 
         modelEmbedNameText.textContent = currentEmbedModel;
         modelChatNameText.textContent = currentChatModel;
+
+        inputChatModel.value = currentChatModel;
+        inputEmbedModel.value = currentEmbedModel;
 
         // 1. Ollama
         updateStep(stepOllama, status.ollama ? 'success' : 'error');

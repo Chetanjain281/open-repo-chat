@@ -8,6 +8,8 @@ import { RAGService } from './services/ragService';
 import { SetupViewProvider } from './providers/SetupViewProvider';
 import { ChatViewProvider } from './providers/ChatViewProvider';
 
+let ollamaService: OllamaService;
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('Open Repo Chat is active!');
 
@@ -15,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
     const ollamaUrl = config.get<string>('ollamaUrl') || 'http://localhost:11434';
 
     // Initialize Services
-    const ollamaService = new OllamaService(ollamaUrl);
+    ollamaService = new OllamaService(ollamaUrl);
     
     const lancedbService = new LanceDBService(context);
     const fileDiscoveryService = new FileDiscoveryService();
@@ -32,7 +34,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Providers
     const setupProvider = new SetupViewProvider(context.extensionUri, ollamaService);
-    const chatProvider = new ChatViewProvider(context.extensionUri, ragService, indexerService);
+    const chatProvider = new ChatViewProvider(context.extensionUri, ragService, indexerService, ollamaService);
 
     // Register Views
     context.subscriptions.push(
@@ -61,4 +63,14 @@ export function activate(context: vscode.ExtensionContext) {
     );
 }
 
-export function deactivate() {}
+export async function deactivate() {
+    if (ollamaService) {
+        const config = vscode.workspace.getConfiguration('openRepoChat');
+        const chatModel = config.get<string>('chatModel') || 'llama3.2:3b';
+        const embedModel = config.get<string>('embeddingModel') || 'nomic-embed-text';
+
+        // Try to unload models on shutdown
+        await ollamaService.unloadModel(chatModel);
+        await ollamaService.unloadModel(embedModel);
+    }
+}

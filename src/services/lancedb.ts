@@ -51,7 +51,7 @@ export class LanceDBService {
     }
 
     async addChunks(chunks: CodeChunk[]): Promise<void> {
-        if (!this.db) await this.connect();
+        if (!this.db) {await this.connect();}
         
         // Ensure vector is present and correct dimension if we were to enforce it.
         // LanceDB handles this.
@@ -67,8 +67,8 @@ export class LanceDBService {
 
     // search method
     async search(queryVector: number[], limit: number = 5): Promise<CodeChunk[]> {
-        if (!this.db) await this.connect();
-        if (!this.table) return [];
+        if (!this.db) {await this.connect();}
+        if (!this.table) {return [];}
 
         const results = await this.table.vectorSearch(queryVector)
             .limit(limit)
@@ -88,7 +88,7 @@ export class LanceDBService {
     }
 
     async clearIndex(): Promise<void> {
-        if (!this.db) await this.connect();
+        if (!this.db) {await this.connect();}
         try {
             await this.db!.dropTable(this.tableName);
             this.table = undefined;

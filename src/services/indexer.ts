@@ -26,62 +26,73 @@ export class IndexerService {
 
         progress.report({ message: `Found ${files.length} files. Starting parsing...` });
 
-        // 2. Clear old index? 
-        // For simple MVP without file tracking, yes, clear and rebuild.
+        // 2. Clear old index
         await this.lancedb.clearIndex();
-        await this.lancedb.connect(); // Re-init table
+        await this.lancedb.connect();
 
         const totalFiles = files.length;
         let processedFiles = 0;
 
-        // Process in batches to batch embeddings? 
-        // Ollama might handle single embeddings better or small batches.
-        // We'll process file by file.
+        // BATCH SIZE for embeddings
+        const BATCH_SIZE = 10;
+        let pendingChunks: any[] = [];
 
         for (const file of files) {
-            if (token.isCancellationRequested) break;
+            if (token.isCancellationRequested) {break;}
 
             const fsPath = file.fsPath;
             const chunks = await this.chunker.chunkFile(fsPath);
 
             processedFiles++;
-            const percent = Math.floor((processedFiles / totalFiles) * 50); // First 50% is parsing/embedding
-            progress.report({ message: `Parsing ${processedFiles}/${totalFiles}`, increment: 0 }); // Increment manually if needed
+            progress.report({
+                message: `Parsing ${processedFiles}/${totalFiles}: ${file.fsPath.split('/').pop()}`,
+                increment: 0
+            });
 
-            if (chunks.length === 0) continue;
-
-            const chunksToAdd: CodeChunk[] = [];
-            
             for (const chunk of chunks) {
-                 if (token.isCancellationRequested) break;
-                 try {
-                     // 3. Embed
-                     // Prefix search_document: for Nomic
-                     const vector = await this.ollama.embed(`search_document: ${chunk.content}`);
-                     
-                     chunksToAdd.push({
-                         id: chunk.id,
-                         vector: vector,
-                         content: chunk.content,
-                         filePath: chunk.filePath,
-                         type: chunk.type,
-                         startLine: chunk.startLine,
-                         endLine: chunk.endLine
-                     });
-                 } catch (e) {
-                     console.error(`Failed to embed chunk ${chunk.id}:`, e);
-                 }
-            }
+                pendingChunks.push(chunk);
 
-            // 4. Store
-            if (chunksToAdd.length > 0) {
-                await this.lancedb.addChunks(chunksToAdd);
+                if (pendingChunks.length >= BATCH_SIZE) {
+                    await this.processBatch(pendingChunks, token);
+                    pendingChunks = [];
+                }
             }
             
-             progress.report({ 
-                 message: `Indexed ${processedFiles}/${totalFiles} files`, 
+            progress.report({
                  increment: (1 / totalFiles) * 100 
             });
+        }
+
+        // Final batch
+        if (pendingChunks.length > 0 && !token.isCancellationRequested) {
+            await this.processBatch(pendingChunks, token);
+        }
+    }
+
+    private async processBatch(chunks: any[], token: vscode.CancellationToken) {
+        if (token.isCancellationRequested) {return;}
+
+        try {
+            const contents = chunks.map(c => `search_document: ${c.content}`);
+            // Get current embedding model from config if needed, but for now use default or service handles it
+            const config = vscode.workspace.getConfiguration('openRepoChat');
+            const embedModel = config.get<string>('embeddingModel') || 'nomic-embed-text';
+
+            const vectors = await this.ollama.generateEmbeddings(contents, embedModel);
+
+            const chunksToAdd: CodeChunk[] = chunks.map((chunk, i) => ({
+                id: chunk.id,
+                vector: vectors[i],
+                content: chunk.content,
+                filePath: chunk.filePath,
+                type: chunk.type,
+                startLine: chunk.startLine,
+                endLine: chunk.endLine
+            }));
+
+            await this.lancedb.addChunks(chunksToAdd);
+        } catch (e) {
+            console.error(`Failed to process batch:`, e);
         }
     }
 }
